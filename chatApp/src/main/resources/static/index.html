@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chat MVP Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+<div>
+    <h2>실시간 채팅 테스트 (MVP)</h2>
+    <input type="text" id="nickname" placeholder="닉네임" value="User1">
+    <input type="text" id="roomId" placeholder="방 번호(Long)" value="1">
+    <button onclick="connect()">연결하기</button>
+</div>
+<hr>
+<div>
+    <input type="text" id="message" placeholder="메시지 입력..." style="width: 300px;">
+    <button onclick="sendMessage()">전송</button>
+</div>
+<ul id="chat-content"></ul>
+
+<script>
+    var stompClient = null;
+
+    function connect() {
+        var socket = new SockJS('/ws-chat'); // WebSocketConfig의 엔드포인트와 일치해야 함
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            console.log('Connected: ' + frame);
+            var roomId = document.getElementById('roomId').value;
+
+            // 특정 방 구독
+            stompClient.subscribe('/topic/room/' + roomId, function (response) {
+                showMessage(JSON.parse(response.body));
+            });
+        });
+    }
+
+    function sendMessage() {
+        var roomId = document.getElementById('roomId').value;
+        var nickname = document.getElementById('nickname').value;
+        var content = document.getElementById('message').value;
+
+        // 메시지 객체 구성 (ChatMessageDto와 동일해야 함)
+        var chatMessage = {
+            type: 'TALK',
+            roomId: roomId,
+            senderId: 1, // 테스트용 임시 ID
+            nickname: nickname,
+            content: content
+        };
+
+        // 메시지 발행 (WebSocketConfig의 접두사 + Controller 매핑 경로)
+        stompClient.send("/app/chat/send", {}, JSON.stringify(chatMessage));
+        document.getElementById('message').value = '';
+    }
+
+    function showMessage(message) {
+        var chatContent = document.getElementById('chat-content');
+        var li = document.createElement('li');
+        li.appendChild(document.createTextNode("[" + message.nickname + "] : " + message.content));
+        chatContent.appendChild(li);
+    }
+</script>
+</body>
+</html>
